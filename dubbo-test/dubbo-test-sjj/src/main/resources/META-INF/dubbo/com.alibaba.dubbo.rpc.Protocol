@@ -1,0 +1,2 @@
+sjjProtocol=com.alibaba.dubbo.rpc.sjj.SjjProtocol
+sjjProtocol2=com.alibaba.dubbo.rpc.sjj.SjjProtocol2

@@ -62,6 +62,9 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
 
     private transient String beanName;
 
+    /**
+     * 判断当前spring 容器是否支持 ApplicationListener
+     */
     private transient boolean supportedApplicationListener;
 
     private ApplicationEventPublisher applicationEventPublisher;
@@ -99,6 +102,8 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
 
     @Override
     public void onApplicationEvent(ContextRefreshedEvent event) {
+        // isDelay true -> 表示不延迟，false -> 表示延迟
+        // 未延迟导出 && 是否未导出 && 未被取消导出
         if (isDelay() && !isExported() && !isUnexported()) {
             if (logger.isInfoEnabled()) {
                 logger.info("The service ready on spring started. service: " + getInterface());
