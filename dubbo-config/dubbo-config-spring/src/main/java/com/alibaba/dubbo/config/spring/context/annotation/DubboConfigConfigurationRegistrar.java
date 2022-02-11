@@ -34,12 +34,17 @@ import static com.alibaba.dubbo.config.spring.util.AnnotatedBeanDefinitionRegist
  * @see DubboConfigConfiguration
  * @see Ordered
  * @since 2.5.8
+ *
+ *
+ *
+ * DubboConfigConfigurationRegistrar的主要作用就是对 properties文件进行解析并根据不同的配置项项生成对应类型的Bean对象。
  */
 public class DubboConfigConfigurationRegistrar implements ImportBeanDefinitionRegistrar {
 
     @Override
     public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
 
+        // 获取 @EnableDubboConfig 上的所有属性值
         AnnotationAttributes attributes = AnnotationAttributes.fromMap(
                 importingClassMetadata.getAnnotationAttributes(EnableDubboConfig.class.getName()));
 

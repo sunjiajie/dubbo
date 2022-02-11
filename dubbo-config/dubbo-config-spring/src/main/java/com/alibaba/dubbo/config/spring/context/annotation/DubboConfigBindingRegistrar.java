@@ -71,8 +71,9 @@ public class DubboConfigBindingRegistrar implements ImportBeanDefinitionRegistra
     }
 
     protected void registerBeanDefinitions(AnnotationAttributes attributes, BeanDefinitionRegistry registry) {
-
-        String prefix = environment.resolvePlaceholders(attributes.getString("prefix"));
+        // dubbo.*
+        String prefixAttrStr = attributes.getString("prefix");
+        String prefix = environment.resolvePlaceholders(prefixAttrStr);
 
         Class<? extends AbstractConfig> configClass = attributes.getClass("type");
 
@@ -86,7 +87,7 @@ public class DubboConfigBindingRegistrar implements ImportBeanDefinitionRegistra
                                           Class<? extends AbstractConfig> configClass,
                                           boolean multiple,
                                           BeanDefinitionRegistry registry) {
-
+        // 根据prefix, 从所有的 properties 中获取对应的键值对
         Map<String, Object> properties = getSubProperties(environment.getPropertySources(), prefix);
 
         if (CollectionUtils.isEmpty(properties)) {
@@ -96,29 +97,45 @@ public class DubboConfigBindingRegistrar implements ImportBeanDefinitionRegistra
             }
             return;
         }
+// 根据配置项生成beanNames，为什么会有多个？
+        // 普通情况一个dubbo.application前缀对应一个ApplicationConfig类型的Bean
+        // 特殊情况下，比如dubbo.protocols对应了：
+//        dubbo.protocols.p1.name=dubbo
+//        dubbo.protocols.p1.port=20880
+//        dubbo.protocols.p1.host=0.0.0.0
 
+//        dubbo.protocols.p2.name=http
+//        dubbo.protocols.p2.port=8082
+//        dubbo.protocols.p2.host=0.0.0.0
+        // 那么就需要对应两个ProtocolConfig类型的Bean，那么就需要两个beanName:p1和p2
+
+        // 这里就是multiple为true或false的区别，名字的区别，根据multiple用来判断是否从配置项中获取beanName
+        // 如果multiple为false，则看有没有配置id属性，如果没有配置则自动生成一个beanName
         Set<String> beanNames = multiple ? resolveMultipleBeanNames(properties) :
                 Collections.singleton(resolveSingleBeanName(properties, configClass, registry));
 
         for (String beanName : beanNames) {
-
+            // 为每个beanName,注册一个空的BeanDefinition
             registerDubboConfigBean(beanName, configClass, registry);
 
+            // 为每个bean注册一个DubboConfigBindingBeanPostProcessor的Bean后置处理器
             registerDubboConfigBindingBeanPostProcessor(prefix, beanName, multiple, registry);
 
         }
 
+        // 注册一个NamePropertyDefaultValueDubboConfigBeanCustomizer的bean
+        // 用来把某个XxConfig所对应的beanName设置到name属性中去
         registerDubboConfigBeanCustomizers(registry);
 
     }
 
     private void registerDubboConfigBean(String beanName, Class<? extends AbstractConfig> configClass,
                                          BeanDefinitionRegistry registry) {
-
+        // 传入 class 类型, 生成对应的 BeanDefinitionBuilder
         BeanDefinitionBuilder builder = rootBeanDefinition(configClass);
 
         AbstractBeanDefinition beanDefinition = builder.getBeanDefinition();
-
+        //
         registry.registerBeanDefinition(beanName, beanDefinition);
 
         if (log.isInfoEnabled()) {
@@ -130,13 +147,18 @@ public class DubboConfigBindingRegistrar implements ImportBeanDefinitionRegistra
 
     private void registerDubboConfigBindingBeanPostProcessor(String prefix, String beanName, boolean multiple,
                                                              BeanDefinitionRegistry registry) {
-
+        // 注册一个DubboConfigBindingBeanPostProcessor的Bean
+        // 每个XxConfig的Bean对应一个DubboConfigBindingBeanPostProcessor的Bean
+        // 比如，一个ApplicationConfig对应一个DubboConfigBindingBeanPostProcessor，
+        // 一个ProtocolConfig也会对应一个DubboConfigBindingBeanPostProcessor
+        // 在构造DubboConfigBindingBeanPostProcessor的时候会指定构造方法的值，这样就可以区别开来了
         Class<?> processorClass = DubboConfigBindingBeanPostProcessor.class;
 
         BeanDefinitionBuilder builder = rootBeanDefinition(processorClass);
 
+        // 真实的前缀，比如dubbo.registries.r2
         String actualPrefix = multiple ? normalizePrefix(prefix) + beanName : prefix;
-
+        // 调用两个参数的构造方法
         builder.addConstructorArgValue(actualPrefix).addConstructorArgValue(beanName);
 
         AbstractBeanDefinition beanDefinition = builder.getBeanDefinition();
@@ -169,13 +191,13 @@ public class DubboConfigBindingRegistrar implements ImportBeanDefinitionRegistra
     private Set<String> resolveMultipleBeanNames(Map<String, Object> properties) {
 
         Set<String> beanNames = new LinkedHashSet<String>();
-
+        // 比如dubbo.protocols.p1.name=dubbo;    其中 propertyName为p1.name
         for (String propertyName : properties.keySet()) {
-
+            // p1.name
             int index = propertyName.indexOf(".");
 
             if (index > 0) {
-
+                // 截取beanName名字为p1
                 String beanName = propertyName.substring(0, index);
 
                 beanNames.add(beanName);
@@ -189,9 +211,9 @@ public class DubboConfigBindingRegistrar implements ImportBeanDefinitionRegistra
 
     private String resolveSingleBeanName(Map<String, Object> properties, Class<? extends AbstractConfig> configClass,
                                          BeanDefinitionRegistry registry) {
-
+        // 配置了dubbo.application.id=appl，那么appl就是beanName
         String beanName = (String) properties.get("id");
-
+        // 如果beanName为null，则会进入if分支，由spring自动生成一个beanName,比如org.apache.dubbo.config.ApplicationConfig#0
         if (!StringUtils.hasText(beanName)) {
             BeanDefinitionBuilder builder = rootBeanDefinition(configClass);
             beanName = BeanDefinitionReaderUtils.generateBeanName(builder.getRawBeanDefinition(), registry);

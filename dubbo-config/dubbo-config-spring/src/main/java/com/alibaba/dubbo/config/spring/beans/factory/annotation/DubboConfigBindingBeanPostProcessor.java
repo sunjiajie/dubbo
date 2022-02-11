@@ -81,13 +81,14 @@ public class DubboConfigBindingBeanPostProcessor implements BeanPostProcessor, A
 
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
-
+        // AbstractConfig 是 dubbo 的类, 所以只会处理 dubbo 自己的 bean
         if (beanName.equals(this.beanName) && bean instanceof AbstractConfig) {
 
             AbstractConfig dubboConfig = (AbstractConfig) bean;
-
+            // 从properties文件中获取值，并设置到dubboConfig对象中
             bind(prefix, dubboConfig);
 
+            // 设置dubboConfig对象的name属性，设置为beanName
             customize(beanName, dubboConfig);
         }
         return bean;
@@ -156,6 +157,7 @@ public class DubboConfigBindingBeanPostProcessor implements BeanPostProcessor, A
 
     private void initConfigBeanCustomizers() {
 
+        // 得到之前创建了的NamePropertyDefaultValueDubboConfigBeanCustomizer
         Collection<DubboConfigBeanCustomizer> configBeanCustomizers =
                 beansOfTypeIncludingAncestors(applicationContext, DubboConfigBeanCustomizer.class).values();
 
