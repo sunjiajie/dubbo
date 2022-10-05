@@ -68,10 +68,19 @@ public class ExtensionLoader<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(ExtensionLoader.class);
 
+    /**
+     * 与 java spi 机制加载的目录保持一致
+     */
     private static final String SERVICES_DIRECTORY = "META-INF/services/";
 
+    /**
+     * 用户扩展点加载目录，一般在二次开发扩展时都放在这个目录里面
+     */
     private static final String DUBBO_DIRECTORY = "META-INF/dubbo/";
 
+    /**
+     * Dubbo 内部扩展点加载目录，Dubbo 内部实现的扩展点配置文件都放在这个目录下
+     */
     private static final String DUBBO_INTERNAL_DIRECTORY = DUBBO_DIRECTORY + "internal/";
 
     private static final Pattern NAME_SEPARATOR = Pattern.compile("\\s*[,]+\\s*");

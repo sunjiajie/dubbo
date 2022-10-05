@@ -1,0 +1,2 @@
+tcp=org.apache.dubbo.demo.spi.TcpProtocol
+http=org.apache.dubbo.demo.spi.HttpProtocol
