@@ -53,6 +53,9 @@ public class Transporters {
         } else {
             handler = new ChannelHandlerDispatcher(handlers);
         }
+        // getTransporter()，通过ExtensionLoader获取Transporter的自适应扩展点
+        // 默认为NettyTransporter
+        // 另外还有MinaTransporter、GrizzlyTransporter
         return getTransporter().bind(url, handler);
     }
 
@@ -72,10 +75,14 @@ public class Transporters {
         } else {
             handler = new ChannelHandlerDispatcher(handlers);
         }
+        //getTransporter()是通过ExtensionLoader获取的Transporter的扩展点
+        // 默认为NettyTransporter
+        //另外还有MinaTransporter、GrizzlyTransporter
         return getTransporter().connect(url, handler);
     }
 
     public static Transporter getTransporter() {
+        // 然后，因为Transporter的@SPI默认值是netty，所以获取到的是NettyTransporter。最终，调用的是NettyTransporter.bind()。
         return ExtensionLoader.getExtensionLoader(Transporter.class).getAdaptiveExtension();
     }
 

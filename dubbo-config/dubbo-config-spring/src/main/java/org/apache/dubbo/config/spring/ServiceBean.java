@@ -53,7 +53,8 @@ import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SPLIT_PATT
 import static org.apache.dubbo.config.spring.util.BeanFactoryUtils.addApplicationListener;
 
 /**
- * ServiceFactoryBean
+ * ServiceBean监听了ContextRefreshedEvent事件，
+ * 即当Spring初始化完成之后，会调用onApplicationEvent方法, 服务的启动和注册，都是onApplicationEvent方法开始的。
  *
  * @export
  */
@@ -107,10 +108,12 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
 
     @Override
     public void onApplicationEvent(ContextRefreshedEvent event) {
+        //服务未暴露，且未移除
         if (!isExported() && !isUnexported()) {
             if (logger.isInfoEnabled()) {
                 logger.info("The service ready on spring started. service: " + getInterface());
             }
+            //核心启动和暴露方法
             export();
         }
     }
@@ -333,8 +336,9 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
      */
     @Override
     public void export() {
+        // ServiceBean 的 super 是ServiceConfig
         super.export();
-        // Publish ServiceBeanExportedEvent
+        // 这里可以通过订阅ServiceBeanExportedEvent，来定制服务暴露后的业务处理逻辑
         publishExportEvent();
     }
 

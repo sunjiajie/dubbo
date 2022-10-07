@@ -51,6 +51,12 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
     private final boolean needReconnect;
     protected volatile ExecutorService executor;
 
+    /**
+     * 分别调用了NettyClient.doOpen()和NettyClient.doConnect()
+     * @param url
+     * @param handler
+     * @throws RemotingException
+     */
     public AbstractClient(URL url, ChannelHandler handler) throws RemotingException {
         super(url, handler);
 

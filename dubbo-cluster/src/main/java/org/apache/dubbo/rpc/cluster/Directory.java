@@ -25,6 +25,10 @@ import java.util.List;
 
 /**
  * Directory. (SPI, Prototype, ThreadSafe)
+ *
+ * 服务目录，用于刷新和保存可用于远程调用的Invoker，严格来说，服务目录是一个公用组件，它既可以划分到注册中心，
+ * 也可以划分到下文中服务容错的模块里，因为这两个功能模块里都用到了Directory(服务目录)。
+ *
  * <p>
  * <a href="http://en.wikipedia.org/wiki/Directory_service">Directory Service</a>
  *

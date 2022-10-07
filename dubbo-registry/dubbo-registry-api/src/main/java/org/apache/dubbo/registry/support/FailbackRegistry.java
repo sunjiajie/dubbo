@@ -232,7 +232,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         removeFailedRegistered(url);
         removeFailedUnregistered(url);
         try {
-            // Sending a registration request to the server side
+            // ZookeeperRegistry.register()
             doRegister(url);
         } catch (Exception e) {
             Throwable t = e;

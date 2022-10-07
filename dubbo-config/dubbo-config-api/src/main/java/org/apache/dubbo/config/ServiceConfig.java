@@ -374,6 +374,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         }
 
         if (shouldDelay()) {
+            // 延迟注册
             DELAY_EXPORT_EXECUTOR.schedule(this::doExport, getDelay(), TimeUnit.MILLISECONDS);
         } else {
             doExport();
@@ -413,6 +414,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (StringUtils.isEmpty(path)) {
             path = interfaceName;
         }
+        // 执行启动和暴露服务
         doExportUrls();
     }
 
@@ -450,11 +452,19 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void doExportUrls() {
+        //加载注册中心，将服务注册到所有的注册中心里。
+        //registryURLs示例：registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=provider-app&dubbo=2.0.2&pid=78430&registry=zookeeper&release=2.7.4.1&timestamp=1644651852219
         List<URL> registryURLs = loadRegistries(true);
+
+        //此处的protocols为要注册的协议
+        //protocols示例：<dubbo:protocol name="dubbo" port="20880" valid="true" id="dubbo" prefix="dubbo.protocols." />
         for (ProtocolConfig protocolConfig : protocols) {
+            //服务路径key，下面会保存到全局服务容器里(ApplicationModel.PROVIDED_SERVICES)
+            //pathKey示例：com.yuqiao.deeplearningdubbo.analysis.base.DemoService
             String pathKey = URL.buildKey(getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), group, version);
             ProviderModel providerModel = new ProviderModel(pathKey, ref, interfaceClass);
             ApplicationModel.initProviderModel(pathKey, providerModel);
+            //执行服务的启动和暴露
             doExportUrlsFor1Protocol(protocolConfig, registryURLs);
         }
     }
@@ -560,6 +570,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         // export service
         String host = this.findConfigedHosts(protocolConfig, registryURLs, map);
         Integer port = this.findConfigedPorts(protocolConfig, name, map);
+        // 将服务信息，转化为URL对象
+        // 将来暴露服务，都是从URL中解析的。
+        // url数据示例：dubbo://172.16.184.39:20880/com.yuqiao.deeplearningdubbo.analysis.base.DemoService?anyhost=true&application=provider-app&bean.name=com.yuqiao.deeplearningdubbo.analysis.base.DemoService&bind.ip=172.16.184.39&bind.port=20880&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=com.yuqiao.deeplearningdubbo.analysis.base.DemoService&methods=sayHello,sayHello2&pid=78430&release=2.7.4.1&side=provider&timestamp=1644652477685
         URL url = new URL(name, host, port, getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), map);
 
         if (ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
@@ -605,7 +618,11 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
                         Invoker<?> invoker = PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(EXPORT_KEY, url.toFullString()));
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
-
+                        // 注册服务
+                        // 注意，这里的protocol是自适应类(Protocol$Adaptive)，url里面的协议参数是registry
+                        // 所以，实际上是调用了RegistryProtocol.export
+                        // 最终，1、在RegistryProtocol.export里调用了DubboProtocol.export启动服务
+                        //     2、在RegistryProtocol.export里调用了Registry.register暴露服务
                         Exporter<?> exporter = protocol.export(wrapperInvoker);
                         exporters.add(exporter);
                     }

@@ -182,7 +182,15 @@ public class RegistryProtocol implements Protocol {
     }
 
     public void register(URL registryUrl, URL registeredProviderUrl) {
+        // 获取注册中心对象Registry
+        // 这里的registryFactory，是自适应扩展RegistryFactory@Adaptive
+        // registryUrl.protocol=zookeeper，所以获取到的是ZookeeperRegistryFactory
+        // 最后通过ZookeeperRegistryFactory.createRegistry创建并获取注册中心对象，ZookeeperRegistry
         Registry registry = registryFactory.getRegistry(registryUrl);
+        // 调用register方法，注册服务
+        // Registry运用的是模板方法设计模式
+        // 底层的抽象实现FailbackRegistry，调用各个实现类的doRegister方法。如ZookeeperRegister.doRegister.
+        // 最终通过ZookeeperRegister.doRegister，注册服务信息，即将服务信息写到注册中心里。这样其他服务就可以从注册中心读到服务信息了。
         registry.register(registeredProviderUrl);
     }
 
@@ -193,8 +201,13 @@ public class RegistryProtocol implements Protocol {
 
     @Override
     public <T> Exporter<T> export(final Invoker<T> originInvoker) throws RpcException {
+        //注册中心URL，
+        //当前URL中的protocol=registry
+        //将protocol替换成注册中心的协议，如zookeeper
         URL registryUrl = getRegistryUrl(originInvoker);
-        // url to export locally
+        // 服务提供者URL
+        // 与registryUrl对比，这里的protocol变成了dubbo
+        // 数据示例：dubbo://172.16.184.39:20880/com.yuqiao.deeplearningdubbo.analysis.base.DemoService?anyhost=true&application=provider-app&bean.name=com.yuqiao.deeplearningdubbo.analysis.base.DemoService&bind.ip=172.16.184.39&bind.port=20880&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=com.yuqiao.deeplearningdubbo.analysis.base.DemoService&methods=sayHello,sayHello2&pid=92866&release=2.7.4.1&side=provider&timestamp=1644830907146
         URL providerUrl = getProviderUrl(originInvoker);
 
         // Subscribe the override data
@@ -206,7 +219,10 @@ public class RegistryProtocol implements Protocol {
         overrideListeners.put(overrideSubscribeUrl, overrideSubscribeListener);
 
         providerUrl = overrideUrlWithConfig(providerUrl, overrideSubscribeListener);
-        //export invoker
+        //导出invoker，
+        //这里面再次通过Protocol$Adaptive调用Protocol的扩展点
+        //因为providerUrl里的protocol已经变为了dubbo，所以这里面实际上调用了DubboProtocol.export。
+        //在DubboProtocol.export()里，实现了服务的启动
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker, providerUrl);
 
         // url to registry
@@ -217,6 +233,7 @@ public class RegistryProtocol implements Protocol {
         //to judge if we need to delay publish
         boolean register = providerUrl.getParameter(REGISTER_KEY, true);
         if (register) {
+            // 实现了服务的注册
             register(registryUrl, registeredProviderUrl);
             providerInvokerWrapper.setReg(true);
         }
@@ -242,7 +259,12 @@ public class RegistryProtocol implements Protocol {
         String key = getCacheKey(originInvoker);
 
         return (ExporterChangeableWrapper<T>) bounds.computeIfAbsent(key, s -> {
+
             Invoker<?> invokerDelegate = new InvokerDelegate<>(originInvoker, providerUrl);
+            //这里调用protocol.export进行启动服务
+            //此处的protocol，是在RegistryProtocol实例化的时候通过ExtensionLoader依赖注入的
+            //依赖注入的是Protocol的自适应扩展点Protocol$Adaptive
+            //此处的originInvoker.url.protocol=dubbo，所以最终调用的是DubboProtocol.export
             return new ExporterChangeableWrapper<>((Exporter<T>) protocol.export(invokerDelegate), originInvoker);
         });
     }
@@ -390,6 +412,11 @@ public class RegistryProtocol implements Protocol {
                 return doRefer(getMergeableCluster(), registry, type, url);
             }
         }
+        // 调用doRefer，完成Invoker的创建和注册中心的订阅
+        // 此处的cluster是成员变量，Cluster的自适应扩展Cluster@Adaptive
+        // 因为Cluster的默认扩展点是FailoverCluster，MockClusterWrapper是Cluster的包装类
+        // 在ExtensionLoader里获取cluster时，默认是FailoverCluster，但有包装类MockClusterWrapper
+        // 因此，这里返回的cluster返回的是MockClusterWrapper
         return doRefer(cluster, registry, type, url);
     }
 
@@ -398,6 +425,9 @@ public class RegistryProtocol implements Protocol {
     }
 
     private <T> Invoker<T> doRefer(Cluster cluster, Registry registry, Class<T> type, URL url) {
+        //RegistryDirectory，是注册中心的服务目录
+        // 1、里面保存了服务提供者相关的信息，并对外提供获取服务的接口。如服务的名字、IP、端口等。
+        // 2、实现了NotifyListener接口，订阅了注册中心的服务信息变更事件，当发生变更后刷新服务目录。
         RegistryDirectory<T> directory = new RegistryDirectory<T>(type, url);
         directory.setRegistry(registry);
         directory.setProtocol(protocol);
@@ -409,9 +439,10 @@ public class RegistryProtocol implements Protocol {
             registry.register(directory.getRegisteredConsumerUrl());
         }
         directory.buildRouterChain(subscribeUrl);
+        //注册服务变更事件
         directory.subscribe(subscribeUrl.addParameter(CATEGORY_KEY,
                 PROVIDERS_CATEGORY + "," + CONFIGURATORS_CATEGORY + "," + ROUTERS_CATEGORY));
-
+        //将服务目录，合并为一个虚拟的Invoker，并返回给Proxy使用
         Invoker invoker = cluster.join(directory);
         ProviderConsumerRegTable.registerConsumer(invoker, url, subscribeUrl, directory);
         return invoker;

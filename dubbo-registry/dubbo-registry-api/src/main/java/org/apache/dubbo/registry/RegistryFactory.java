@@ -23,6 +23,8 @@ import org.apache.dubbo.common.extension.SPI;
 /**
  * RegistryFactory. (SPI, Singleton, ThreadSafe)
  *
+ * 注册中心工厂，用于在初始化时创建Registry
+ *
  * @see org.apache.dubbo.registry.support.AbstractRegistryFactory
  */
 @SPI("dubbo")

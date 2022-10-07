@@ -22,6 +22,8 @@ import org.apache.dubbo.common.URL;
 /**
  * Registry. (SPI, Prototype, ThreadSafe)
  *
+ * 是对注册中心的抽象，一个Registry就代表一个注册中心
+ *
  * @see org.apache.dubbo.registry.RegistryFactory#getRegistry(URL)
  * @see org.apache.dubbo.registry.support.AbstractRegistry
  */

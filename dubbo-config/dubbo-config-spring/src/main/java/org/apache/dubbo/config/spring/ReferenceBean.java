@@ -46,7 +46,14 @@ import java.util.Map;
 import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SPLIT_PATTERN;
 
 /**
- * ReferenceFactoryBean
+ * ReferenceBean的定义
+ * 1、实现 ApplicationContextAware，会自动初始化Spring上下文
+ * 2、实现 FactoryBean，当引用对象的时候，会调用getObject();
+ * 3、实现 InitializingBean，对象属性填充后，会调用afterPropertiesSet();
+ * 4、实现 DisposableBean，销毁时，会调用destroy()。
+ * 所以，服务引用的触发点有两个，
+ * 1、在afterPropertiesSet()里，如果<dubbo:reference />明确配置了init=true，就直接在这里初始化。
+ * 2、在getObject()里，当前对象被引用时，触发此方法，并初始化。
  */
 public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean, ApplicationContextAware, InitializingBean, DisposableBean {
 
@@ -68,8 +75,13 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
         SpringExtensionFactory.addApplicationContext(applicationContext);
     }
 
+    /**
+     * FactoryBean 的回调方法
+     * @return
+     */
     @Override
     public Object getObject() {
+        //调用了父类ReferenceConfig.get()方法
         return get();
     }
 
@@ -84,6 +96,10 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
         return true;
     }
 
+    /**
+     * InitializingBean 会回调此方法
+     * @throws Exception
+     */
     @Override
     @SuppressWarnings({"unchecked"})
     public void afterPropertiesSet() throws Exception {
@@ -234,6 +250,8 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
             }
         }
 
+        //是否需要初始化
+        //<dubbo:reference />或<dubbo:consumer />配置了init时，才从这里开始初始化。
         if (shouldInit()) {
             getObject();
         }

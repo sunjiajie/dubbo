@@ -23,6 +23,10 @@ import java.util.List;
 /**
  * NotifyListener. (API, Prototype, ThreadSafe)
  *
+ * 定义了通知(notify())接口，此接口的实现类用于接收服务变更的通知。
+ * RegistryDirectory 同时实现了 Directory 和 NotifyListener，它既实现了刷新和保存可用于远程调用的Invoker的功能，也实现了接收服务变更通知的功能
+ *
+ *
  * @see org.apache.dubbo.registry.RegistryService#subscribe(URL, NotifyListener)
  */
 public interface NotifyListener {

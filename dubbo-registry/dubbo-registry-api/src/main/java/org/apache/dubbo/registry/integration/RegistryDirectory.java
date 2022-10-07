@@ -84,7 +84,8 @@ import static org.apache.dubbo.rpc.cluster.Constants.ROUTER_KEY;
 
 
 /**
- * RegistryDirectory
+ * 保存了服务提供者相关的信息，并对外提供获取服务的接口。
+ * 实现了 NotifyListener 接口，此接口可用于订阅注册中心的服务信息变更事件，并当发生变更后，会触发调用NotifyListener.notify()。
  */
 public class RegistryDirectory<T> extends AbstractDirectory<T> implements NotifyListener {
 
@@ -169,6 +170,12 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
         setConsumerUrl(url);
         CONSUMER_CONFIGURATION_LISTENER.addNotifyListener(this);
         serviceConfigurationListener = new ReferenceConfigurationListener(this, url);
+        //调用Registry注册中心，订阅服务信息变更事件
+        //Registry.subscribe()是接口的抽象方法，内部会调用子类的模板方法 doSubscribe();
+        //这里的registry是 ZookeeperRegistry，其父类是FailbackRegistry
+        //因此，里面的逻辑是：
+        //先调用 FailbackRegistry.subscribe()；
+        //然后调用 ZookeeperRegistry.doSubScribe()。
         registry.subscribe(url, this);
     }
 
@@ -251,10 +258,12 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
      *
      * @param invokerUrls this parameter can't be null
      */
-    // TODO: 2017/8/31 FIXME The thread pool should be used to refresh the address, otherwise the task may be accumulated.
     private void refreshInvoker(List<URL> invokerUrls) {
         Assert.notNull(invokerUrls, "invokerUrls should not be null");
 
+        //只有一个empty协议的URL，销毁所有invokers，将forbidden置为true
+        //所有服务提供者都停止的时候，就会走此逻辑
+        //正常情况下走else的逻辑
         if (invokerUrls.size() == 1
                 && invokerUrls.get(0) != null
                 && EMPTY_PROTOCOL.equals(invokerUrls.get(0).getProtocol())) {
@@ -277,6 +286,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
             if (invokerUrls.isEmpty()) {
                 return;
             }
+            // 将invokerUrls，转化为Invoker Map，内含生成Invoker的逻辑
             Map<String, Invoker<T>> newUrlInvokerMap = toInvokers(invokerUrls);// Translate url list to Invoker map
 
             /**
@@ -292,15 +302,15 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
                         .toString()));
                 return;
             }
-
             List<Invoker<T>> newInvokers = Collections.unmodifiableList(new ArrayList<>(newUrlInvokerMap.values()));
-            // pre-route and build cache, notice that route cache should build on original Invoker list.
-            // toMergeMethodInvokerMap() will wrap some invokers having different groups, those wrapped invokers not should be routed.
+            // 将最新的invokers保存到routerChain中
+            // routerChain是invoker的容器。
             routerChain.setInvokers(newInvokers);
             this.invokers = multiGroup ? toMergeInvokerList(newInvokers) : newInvokers;
             this.urlInvokerMap = newUrlInvokerMap;
 
             try {
+                //销毁没用的invokers
                 destroyUnusedInvokers(oldUrlInvokerMap, newUrlInvokerMap); // Close the unused Invoker
             } catch (Exception e) {
                 logger.warn("destroyUnusedInvokers error. ", e);

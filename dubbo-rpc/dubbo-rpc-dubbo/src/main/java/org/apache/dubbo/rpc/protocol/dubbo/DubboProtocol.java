@@ -282,7 +282,8 @@ public class DubboProtocol extends AbstractProtocol {
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
         URL url = invoker.getUrl();
 
-        // export service.
+        // 暴露服务.
+        // 服务key由接口名、端口、group、version共同组成
         String key = serviceKey(url);
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
         exporterMap.put(key, exporter);
@@ -302,7 +303,7 @@ public class DubboProtocol extends AbstractProtocol {
                 stubServiceMethodsMap.put(url.getServiceKey(), stubServiceMethods);
             }
         }
-
+        //启动服务的核心代码
         openServer(url);
         optimizeSerialization(url);
 
@@ -310,16 +311,22 @@ public class DubboProtocol extends AbstractProtocol {
     }
 
     private void openServer(URL url) {
-        // find server.
+        // 服务key=IP:PORT.
+        // 数据示例：172.16.184.39:20880
         String key = url.getAddress();
         //client can export a service which's only for server to invoke
         boolean isServer = url.getParameter(IS_SERVER_KEY, true);
         if (isServer) {
+            //这里需要特别注意
+            //先从serverMap里获取，看是否已经启动了服务。
+            //如果没有启动，需要启动一个服务
+            //如果已经启动服务了，则只需要重置服务信息（即将当前服务信息添加到全局服务信息里）
             ExchangeServer server = serverMap.get(key);
             if (server == null) {
                 synchronized (this) {
                     server = serverMap.get(key);
                     if (server == null) {
+                        //创建并启动一个服务，同时将当前服务信息暴露出去
                         serverMap.put(key, createServer(url));
                     }
                 }
@@ -346,6 +353,7 @@ public class DubboProtocol extends AbstractProtocol {
 
         ExchangeServer server;
         try {
+            //启动服务的核心逻辑
             server = Exchangers.bind(url, requestHandler);
         } catch (RemotingException e) {
             throw new RpcException("Fail to start server(url: " + url + ") " + e.getMessage(), e);
@@ -403,7 +411,8 @@ public class DubboProtocol extends AbstractProtocol {
     public <T> Invoker<T> protocolBindingRefer(Class<T> serviceType, URL url) throws RpcException {
         optimizeSerialization(url);
 
-        // create rpc invoker.
+        // 创建DubboInvoker
+        // 其核心的连接服务端的实现，在getClients里
         DubboInvoker<T> invoker = new DubboInvoker<T>(serviceType, url, getClients(url), invokers);
         invokers.add(invoker);
 
