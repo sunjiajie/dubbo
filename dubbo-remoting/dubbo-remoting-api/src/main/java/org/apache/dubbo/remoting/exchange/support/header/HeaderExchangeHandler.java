@@ -38,7 +38,17 @@ import java.util.concurrent.CompletionStage;
 
 
 /**
- * ExchangeReceiver
+ * Dubbo 服务调用的全流程如上图所示。
+ *
+ * 1.服务消费者通过本地Invoker，向服务提供者发送请求，并对请求消息编码。
+ * 2.服务消费者阻塞等待返回结果。
+ * 3.服务提供者接收请求，并在处理业务逻辑之前对请求消息解码。
+ * 4.服务提供者将本次调用的业务处理分发到线程池，并通过Invoker调用接口的实现。
+ * 5.服务提供者发送响应结果，并在发送到服务消费者之前，对响应结果编码。
+ * 6.服务消费者接收响应结果，并在处理之前对响应结果解码。
+ * 7.服务消费者将本次响应分发到线程池，异步处理。
+ * 8.在异步处理过程中，通过请求编号找到本次调用的DefaultFuture，设置返回结果并唤醒第2步的阻塞。
+ * 9.业务调用方同步获取到第 8 步设置的响应结果。
  */
 public class HeaderExchangeHandler implements ChannelHandlerDelegate {
 
@@ -99,7 +109,10 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
         // find handler by message class.
         Object msg = req.getData();
         try {
+            // 以上代码的核心是构建Response响应信息，它调用DubboProtocol.requestHandler.reply()获取业务结果，并将结果构建到Response里。
+            // 调用DubboProtocol.reply()
             CompletionStage<Object> future = handler.reply(channel, msg);
+            // 当异步计算结束时，触发以下逻辑
             future.whenComplete((appResult, t) -> {
                 try {
                     if (t == null) {
@@ -190,6 +203,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
                     handlerEvent(channel, request);
                 } else {
                     if (request.isTwoWay()) {
+                        // 如果是Request请求，且是双向通讯请求，继续调用内部方法handleRequest()
                         handleRequest(exchangeChannel, request);
                     } else {
                         handler.received(exchangeChannel, request.getData());

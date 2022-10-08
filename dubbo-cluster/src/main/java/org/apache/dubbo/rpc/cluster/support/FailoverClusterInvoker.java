@@ -58,6 +58,7 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
         List<Invoker<T>> copyInvokers = invokers;
         checkInvokers(copyInvokers, invocation);
         String methodName = RpcUtils.getMethodName(invocation);
+        //获取重试次数
         int len = getUrl().getMethodParameter(methodName, RETRIES_KEY, DEFAULT_RETRIES) + 1;
         if (len <= 0) {
             len = 1;
@@ -67,18 +68,25 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
         List<Invoker<T>> invoked = new ArrayList<Invoker<T>>(copyInvokers.size()); // invoked invokers.
         Set<String> providers = new HashSet<String>(len);
         for (int i = 0; i < len; i++) {
-            //Reselect before retry to avoid a change of candidate `invokers`.
-            //NOTE: if `invokers` changed, then `invoked` also lose accuracy.
+            //重试前，重新获取可用的invokers(因为invokers有可能变更)，并再次校验
+            //如果invokers做了变更，则可能导致'invoked'不准确。
+            //注意：第一次调用的时候，不会走下面的if(){}逻辑。
             if (i > 0) {
                 checkWhetherDestroyed();
+                //重新获取可用的invokers
                 copyInvokers = list(invocation);
                 // check again
                 checkInvokers(copyInvokers, invocation);
             }
+            //筛选出唯一的Invoker，用于后面的远程调用
+            //内部包含负载均衡算法等逻辑
             Invoker<T> invoker = select(loadbalance, invocation, copyInvokers, invoked);
             invoked.add(invoker);
             RpcContext.getContext().setInvokers((List) invoked);
             try {
+                //调用invoker.invoke()，发起远程调用
+                //此处的invoker为InvokerDelegate
+                //经过一系列的逻辑处理，最终调用AsyncToSyncInvoker.invoke()
                 Result result = invoker.invoke(invocation);
                 if (le != null && logger.isWarnEnabled()) {
                     logger.warn("Although retry the method " + methodName

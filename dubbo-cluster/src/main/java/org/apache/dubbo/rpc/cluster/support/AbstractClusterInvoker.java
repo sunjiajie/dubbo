@@ -241,10 +241,16 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
         if (contextAttachments != null && contextAttachments.size() != 0) {
             ((RpcInvocation) invocation).addAttachments(contextAttachments);
         }
-
+        //获取可用的invokers
+        //list的底层是调用的Directory.list
+        //所有的invokers都保存在RouterChain.invokers里
+        //所以Directory.list最终也是从RouterChain.invokers获取的
         List<Invoker<T>> invokers = list(invocation);
+        //初始化负载均衡
         LoadBalance loadbalance = initLoadBalance(invokers, invocation);
+        //为异步调用添加InvocationId
         RpcUtils.attachInvocationIdIfAsync(getUrl(), invocation);
+        //调用子类的模板方法doInvoke()，当前对象为FailoverClusterInvoker
         return doInvoke(invocation, invokers, loadbalance);
     }
 
@@ -281,15 +287,8 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
     }
 
     /**
-     * Init LoadBalance.
-     * <p>
-     * if invokers is not empty, init from the first invoke's url and invocation
-     * if invokes is empty, init a default LoadBalance(RandomLoadBalance)
-     * </p>
-     *
-     * @param invokers   invokers
-     * @param invocation invocation
-     * @return LoadBalance instance. if not need init, return null.
+     * 如果invoker不为空，则通过第一个invoker的负载均衡参数，指定负载群衡器
+     * 如果没有负载均衡参数，取默认的随机负载均衡器
      */
     protected LoadBalance initLoadBalance(List<Invoker<T>> invokers, Invocation invocation) {
         if (CollectionUtils.isNotEmpty(invokers)) {

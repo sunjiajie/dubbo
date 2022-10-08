@@ -49,9 +49,12 @@ public class AsyncToSyncInvoker<T> implements Invoker<T> {
 
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
+        //调用DubboInvoker.invoke()
         Result asyncResult = invoker.invoke(invocation);
 
         try {
+            //如果是同步调用，等待返回结果
+            //默认是同步调用
             if (InvokeMode.SYNC == ((RpcInvocation) invocation).getInvokeMode()) {
                 asyncResult.get(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
             }
@@ -60,8 +63,10 @@ public class AsyncToSyncInvoker<T> implements Invoker<T> {
         } catch (ExecutionException e) {
             Throwable t = e.getCause();
             if (t instanceof TimeoutException) {
+                //调用超时异常
                 throw new RpcException(RpcException.TIMEOUT_EXCEPTION, "Invoke remote method timeout. method: " + invocation.getMethodName() + ", provider: " + getUrl() + ", cause: " + e.getMessage(), e);
             } else if (t instanceof RemotingException) {
+                //远程调用异常
                 throw new RpcException(RpcException.NETWORK_EXCEPTION, "Failed to invoke remote method: " + invocation.getMethodName() + ", provider: " + getUrl() + ", cause: " + e.getMessage(), e);
             }
         } catch (Throwable e) {

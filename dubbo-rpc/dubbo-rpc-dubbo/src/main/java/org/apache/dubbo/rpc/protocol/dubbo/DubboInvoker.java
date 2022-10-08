@@ -72,6 +72,18 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
         this.invokers = invokers;
     }
 
+
+    /**
+     * 1.实例化一个AsyncRpcResult对象，将来作为返回结果，返回给AsyncToSyncInvoker；
+     * 2.调用ExchangeClient.request()，并返回CompletableFuture；
+     * 3.asyncRpcResult 注册CompletableFuture的whenComplete事件；
+     * 4.将asyncRpcResult 返回给AsyncToSyncInvoker；
+     * 5.在AsyncToSyncInvoker中调用AsyncRpcResult.get()，阻塞等待结果；
+     * 6.服务端返回响应数据后(此过程在下文中分析)，调用CompletableFuture.complete()，触发asyncRpcResult.complete()，最终解除AsyncRpcResult.get()的阻塞，并获取返回结果。
+     * @param invocation
+     * @return
+     * @throws Throwable
+     */
     @Override
     protected Result doInvoke(final Invocation invocation) throws Throwable {
         RpcInvocation inv = (RpcInvocation) invocation;
@@ -79,6 +91,10 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
         inv.setAttachment(PATH_KEY, getUrl().getPath());
         inv.setAttachment(VERSION_KEY, version);
 
+        // 获取ExchangeClient，用于通讯
+        // ExchangeClient表示客户端，包装了与远程通讯的逻辑
+        // 此处的ExchangeClient为ReferenceCountExchangeClient，装饰了HeaderExchangeClient
+        // 因此，最终调用的是HeaderExchangeClient
         ExchangeClient currentClient;
         if (clients.length == 1) {
             currentClient = clients[0];
@@ -86,15 +102,23 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
             currentClient = clients[index.getAndIncrement() % clients.length];
         }
         try {
+            //判断是否单向通讯
+            //单向通讯，即只发送请求，不关心结果
             boolean isOneway = RpcUtils.isOneway(getUrl(), invocation);
             int timeout = getUrl().getMethodPositiveParameter(methodName, TIMEOUT_KEY, DEFAULT_TIMEOUT);
+            //如果是单向通讯，调用的是currentClient.send()，直接返回结果
             if (isOneway) {
                 boolean isSent = getUrl().getMethodParameter(methodName, Constants.SENT_KEY, false);
                 currentClient.send(inv, isSent);
                 return AsyncRpcResult.newDefaultAsyncResult(invocation);
             } else {
+                //如果是双向通讯，调用的是currentClient.request()
                 AsyncRpcResult asyncRpcResult = new AsyncRpcResult(inv);
                 CompletableFuture<Object> responseFuture = currentClient.request(inv, timeout);
+                // 注册 responseFuture.whenComplete，调用 asyncRpcResult.complete()
+                // 在 AsyncToSyncInvoker 调用 DubboInvoker之后，如果是同步调用，会调用asyncRpcResult.get()等待结果。
+                // 当 responseFuture执行完成后，触发 asyncRpcResult.complete()
+                // 然后触发 AsyncToSyncInvoker 中的 asyncRpcResult.get()执行结束，得到最终的Result
                 asyncRpcResult.subscribeTo(responseFuture);
                 // save for 2.6.x compatibility, for example, TraceFilter in Zipkin uses com.alibaba.xxx.FutureAdapter
                 FutureContext.getContext().setCompatibleFuture(responseFuture);

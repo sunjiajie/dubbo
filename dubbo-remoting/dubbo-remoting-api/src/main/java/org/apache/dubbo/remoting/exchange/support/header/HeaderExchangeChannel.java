@@ -82,12 +82,15 @@ final class HeaderExchangeChannel implements ExchangeChannel {
 
     @Override
     public void send(Object message, boolean sent) throws RemotingException {
+        //判断当前链接通道是否已关闭
         if (closed) {
             throw new RemotingException(this.getLocalAddress(), null, "Failed to send message " + message + ", cause: The channel " + this + " is closed!");
         }
         if (message instanceof Request
                 || message instanceof Response
                 || message instanceof String) {
+            //发送消息（message为Request/Response/String）
+            //此处的channel为 NettyChannel
             channel.send(message, sent);
         } else {
             Request request = new Request();

@@ -36,7 +36,11 @@ public class RandomLoadBalance extends AbstractLoadBalance {
     public static final String NAME = "random";
 
     /**
-     * Select one invoker between a list using a random criteria
+     *  根据产出的随机数，获取invoker
+     * 以下逻辑可以这么理解
+     * 举例，有A、B两个服务，权重分别是2、3
+     * 权重值之和为5，随机数区间为[0,1,2,3,4]，A服务被选中的概率为2/5，取值范围[0,1]，B服务被选中的概率为3/5，取值范围[2,3,4]
+     * 如果随机数为4，则命中B服务；如果随机数为1，则命中A服务
      * @param invokers List of possible invokers
      * @param url URL
      * @param invocation Invocation
@@ -77,7 +81,7 @@ public class RandomLoadBalance extends AbstractLoadBalance {
                 }
             }
         }
-        // If all invokers have the same weight value or totalWeight=0, return evenly.
+        // 如果所有invoker的权重都一样，则直接随机选出一个
         return invokers.get(ThreadLocalRandom.current().nextInt(length));
     }
 
