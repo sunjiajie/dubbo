@@ -41,6 +41,12 @@ import static org.apache.dubbo.remoting.Constants.CONNECT_QUEUE_CAPACITY;
 import static org.apache.dubbo.remoting.Constants.CONNECT_QUEUE_WARNING_SIZE;
 import static org.apache.dubbo.remoting.Constants.DEFAULT_CONNECT_QUEUE_WARNING_SIZE;
 
+
+/**
+ * ConnectionOrderedDispatcher对应的线程派发处理器是ConnectionOrderedChannelHandler，配置名为connection，
+ * 它的线程派发特点是，使用单独的线程池处理连接请求和断开连接请求，其它的消息派发至线程池处理。
+ * 同时，它会将连接/断开连接的请求放到队列里，当超过设定的限制数时发出警告。
+ */
 public class ConnectionOrderedChannelHandler extends WrappedChannelHandler {
 
     protected final ThreadPoolExecutor connectionExecutor;
@@ -49,19 +55,23 @@ public class ConnectionOrderedChannelHandler extends WrappedChannelHandler {
     public ConnectionOrderedChannelHandler(ChannelHandler handler, URL url) {
         super(handler, url);
         String threadName = url.getParameter(THREAD_NAME_KEY, DEFAULT_THREAD_NAME);
+        //初始化处理连接的线程池
         connectionExecutor = new ThreadPoolExecutor(1, 1,
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<Runnable>(url.getPositiveParameter(CONNECT_QUEUE_CAPACITY, Integer.MAX_VALUE)),
                 new NamedThreadFactory(threadName, true),
                 new AbortPolicyWithReport(threadName, url)
-        );  // FIXME There's no place to release connectionExecutor!
+        );
+        //队列警告限制，默认1000个
         queuewarninglimit = url.getParameter(CONNECT_QUEUE_WARNING_SIZE, DEFAULT_CONNECT_QUEUE_WARNING_SIZE);
     }
 
     @Override
     public void connected(Channel channel) throws RemotingException {
         try {
+            //校验队列长度是否超限，超限发出警告
             checkQueueLength();
+            //使用专门用于处理连接的线程池处理连接
             connectionExecutor.execute(new ChannelEventRunnable(channel, handler, ChannelState.CONNECTED));
         } catch (Throwable t) {
             throw new ExecutionException("connect event", channel, getClass() + " error when process connected event .", t);
@@ -71,7 +81,9 @@ public class ConnectionOrderedChannelHandler extends WrappedChannelHandler {
     @Override
     public void disconnected(Channel channel) throws RemotingException {
         try {
+            //校验队列长度是否超限，超限发出警告
             checkQueueLength();
+            //使用专门用于处理连接的线程池处理断开连接
             connectionExecutor.execute(new ChannelEventRunnable(channel, handler, ChannelState.DISCONNECTED));
         } catch (Throwable t) {
             throw new ExecutionException("disconnected event", channel, getClass() + " error when process disconnected event .", t);

@@ -38,8 +38,7 @@ import static org.apache.dubbo.common.constants.CommonConstants.THREADS_KEY;
 import static org.apache.dubbo.common.constants.CommonConstants.THREAD_NAME_KEY;
 
 /**
- * Creates a thread pool that creates new threads as needed until limits reaches. This thread pool will not shrink
- * automatically.
+ * LimitedThreadPool是可伸缩的线程池，配置名为limited，它的线程池策略是，可以伸缩，但它只能扩容不能缩容，目的是防止大流量来时，由于频繁创建线程导致引发性能问题。
  */
 public class LimitedThreadPool implements ThreadPool {
 

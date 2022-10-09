@@ -30,6 +30,10 @@ import org.apache.dubbo.remoting.transport.dispatcher.WrappedChannelHandler;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 
+
+/**
+ * AllDispatcher是默认的线程派发器，配置名为all，它对应的线程派发处理器是AllChannelHandler，它的线程派发逻辑是将所有的消息都派发至线程池处理。
+ */
 public class AllChannelHandler extends WrappedChannelHandler {
 
     public AllChannelHandler(ChannelHandler handler, URL url) {

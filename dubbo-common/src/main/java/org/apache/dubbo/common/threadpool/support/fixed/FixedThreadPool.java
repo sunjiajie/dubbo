@@ -35,7 +35,7 @@ import static org.apache.dubbo.common.constants.CommonConstants.THREADS_KEY;
 import static org.apache.dubbo.common.constants.CommonConstants.THREAD_NAME_KEY;
 
 /**
- * Creates a thread pool that reuses a fixed number of threads
+ * FixedThreadPool是固定大小的线程池，配置名字为fixed，它的线程池策略是，创建一个固定大小的线程池，运行期间不会关闭线程，一直持有，直到服务关闭。
  *
  * @see java.util.concurrent.Executors#newFixedThreadPool(int)
  */

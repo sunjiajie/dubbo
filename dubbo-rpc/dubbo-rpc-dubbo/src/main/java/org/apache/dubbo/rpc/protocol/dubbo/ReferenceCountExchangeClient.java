@@ -35,6 +35,8 @@ import static org.apache.dubbo.rpc.protocol.dubbo.Constants.LAZY_CONNECT_INITIAL
 
 /**
  * dubbo protocol support class.
+ *
+ * ReferenceCountExchangeClient是HeaderExchangeClient的装饰类，它只实现了一个引用计数的功能。
  */
 @SuppressWarnings("deprecation")
 final class ReferenceCountExchangeClient implements ExchangeClient {

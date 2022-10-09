@@ -54,9 +54,11 @@ public class HeaderExchangeClient implements ExchangeClient {
 
     public HeaderExchangeClient(Client client, boolean startTimer) {
         Assert.notNull(client, "Client can't be null");
+        //此处的client为Transport层的Client对象，如NettyClient
         this.client = client;
+        //构建HeaderExchangeChannel
         this.channel = new HeaderExchangeChannel(client);
-
+        //启用重新连接和心跳任务
         if (startTimer) {
             URL url = client.getUrl();
             startReconnectTask(url);

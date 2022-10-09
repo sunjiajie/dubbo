@@ -29,7 +29,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Round robin load balance.
+ * RoundRobinLoadBalance是一种平滑加权轮询算法负载均衡器。这个算法是具有良好分布性的根据权重轮询的算法。
+ *
+ * 所谓加权轮询，就是根据权重轮流着调用这三个服务。 比如有 A、B、C 三个服务，权重分别是 5、3、2。假定调用 10 次，那么最终调用的次数，应该是 5 次 A，3 次 B，2 次 C。
+ *
+ * 所谓平滑，指的是在调用过程中要有良好的分布性，比如调用 10 次目标服务的顺序，不应该是[A,A,A,A,A,B,B,B,C,C]，这样会导致一开始 A 服务的压力很大，而且 B 服务和 C 服务基本处于闲置状态。良好的分布性应该是[A,B,A,C,A,B,A,C,A,B]，这样在调用过程中，各服务都处于工作和闲置较为平衡的状态。
+ *
+ * RoundRobinLoadBalance的计算过程如下：
+ *
+ * 给每个服务设置 2 个权重，原始权重(weight)和当前权重(current)，原始权重即给服务设定的权重，当前权重，用于选择目标时的加/减权；
+ * 轮询加权，轮询每个服务，服务的当前权重(current)=当前权重(current)+原始权重(weight)；
+ * 选出当前权重(current)最大的服务，作为目标服务；
+ * 选中后减权，目标服务的当前权重(current)=当前权重(current)-总权重(totalWeight)；
+ * 每次调用，重复执行第 2、3、4 步。 下面是 A、B、C 三个服务，权重分别是 5、3、2，调用 10 次的计算过程。
  */
 public class RoundRobinLoadBalance extends AbstractLoadBalance {
     public static final String NAME = "roundrobin";

@@ -25,12 +25,11 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * LeastActiveLoadBalance
- * <p>
- * Filter the number of invokers with the least number of active calls and count the weights and quantities of these invokers.
- * If there is only one invoker, use the invoker directly;
- * if there are multiple invokers and the weights are not the same, then random according to the total weight;
- * if there are multiple invokers and the same weight, then randomly called.
+ * LeastActiveLoadBalance是最小活跃数算法负载均衡器，它是在随机算法的基础上，利用了服务提供者活跃数统计的功能，选择活跃数最少服务提供者。
+ *
+ * 活跃数统计的逻辑是，当发起调用时活跃数加一，调用完之后活跃数减一。这个算法的基本理论依据是认为活跃数少的服务提供者性能更好。
+ * 比如有A、B两个服务，分别有100个请求，在某个时间点统计活跃数，A服务处理了60个请求，活跃数是40个，B服务处理了30个请求，活跃数是70个，
+ * 这说明A服务的性能更好，因此，要把更多的请求发送到A服务，让A服务处理。
  */
 public class LeastActiveLoadBalance extends AbstractLoadBalance {
 

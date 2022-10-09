@@ -33,7 +33,9 @@ import java.util.concurrent.ConcurrentMap;
 import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SPLIT_PATTERN;
 
 /**
- * ConsistentHashLoadBalance
+ * ConsistentHashLoadBalance是一致性哈希算法负载均衡器。所谓一致性哈希，就是在一个环上设置若干个节点，然后通过哈希值，映射定位到对应的节点上。
+ *
+ * 比如一个环上有4个节点node_1、node_2、node_3和node_4，分别对应的hash值是0、10、20、和30。假定P的hashcode为15，计算得出大于15的最小hash节点的hash值是20，因此，这个P就落在node_3上。假如node_3挂掉了，则会落在node_4上。
  */
 public class ConsistentHashLoadBalance extends AbstractLoadBalance {
     public static final String NAME = "consistenthash";

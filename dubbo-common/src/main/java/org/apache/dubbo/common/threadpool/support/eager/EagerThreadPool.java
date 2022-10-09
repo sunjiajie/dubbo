@@ -39,6 +39,13 @@ import static org.apache.dubbo.common.constants.CommonConstants.THREAD_NAME_KEY;
  * EagerThreadPool
  * When the core threads are all in busy,
  * create new thread instead of putting task into blocking queue.
+ *
+ *
+ * 1.当前线程数小于corePoolSize时，创建工作线程；
+ * 2.当前线程数大于corePoolSize，小于maximumPoolSize时，继续创建工作线程；
+ * 3.只有当前线程数大于maximumPoolSize时，才将任务添加至队列；
+ * 4.队列满时，再有新的线程进来，则抛出RejectedExecutionException。
+ * 它的这种策略是为了尽可能的降低远程调用的响应时间来设计的，如果按照默认的线程处理策略，当前线程数大于corePoolSize，小于maximumPoolSize时，是先放队列，而不是创建工作线程，等队列满了才创建线程，显而易见，当并发量大时，由于没有立刻创建线程处理，而是先放到队列，肯定会影响远程调用的性能。
  */
 public class EagerThreadPool implements ThreadPool {
 

@@ -41,6 +41,9 @@ import static org.apache.dubbo.common.constants.CommonConstants.THREAD_NAME_KEY;
  * This thread pool is self-tuned. Thread will be recycled after idle for one minute, and new thread will be created for
  * the upcoming request.
  *
+ * CachedThreadPool是带缓存的线程池，配置名为cached，它的线程池策略是，需要线程时创建线程，已创建的线程空闲超时(默认一分钟)后自动删除，需要时再重建。
+ *
+ *
  * @see java.util.concurrent.Executors#newCachedThreadPool()
  */
 public class CachedThreadPool implements ThreadPool {
