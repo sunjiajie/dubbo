@@ -214,6 +214,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
 
     @Override
     public synchronized void notify(List<URL> urls) {
+        //初始化有效的url
         Map<String, List<URL>> categoryUrls = urls.stream()
                 .filter(Objects::nonNull)
                 .filter(this::isValidCategory)
@@ -228,21 +229,25 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
                     }
                     return "";
                 }));
-
+        //处理configurators类型的URL
         List<URL> configuratorURLs = categoryUrls.getOrDefault(CONFIGURATORS_CATEGORY, Collections.emptyList());
         this.configurators = Configurator.toConfigurators(configuratorURLs).orElse(this.configurators);
-
+        //处理routers类型的URL
         List<URL> routerURLs = categoryUrls.getOrDefault(ROUTERS_CATEGORY, Collections.emptyList());
         toRouters(routerURLs).ifPresent(this::addRouters);
 
-        // providers
+        //处理providers类型的URL
+        //这里面包含了刷新和保存Invoker的核心逻辑
         List<URL> providerURLs = categoryUrls.getOrDefault(PROVIDERS_CATEGORY, Collections.emptyList());
+        //刷新Invoker
         refreshOverrideAndInvoker(providerURLs);
     }
 
     private void refreshOverrideAndInvoker(List<URL> urls) {
-        // mock zookeeper://xxx?mock=return null
+        // 重写一些配置的URL，默认情况下可忽略
         overrideDirectoryUrl();
+
+        // 刷新Invoker的核心方法
         refreshInvoker(urls);
     }
 
@@ -272,21 +277,29 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
             routerChain.setInvokers(this.invokers);
             destroyAllInvokers(); // Close all invokers
         } else {
+            //将forbidden设置为false，允许访问
+            //在拉取Invoker集合时，表示有可用的Invoker
             this.forbidden = false; // Allow to access
+
+            //刷新前的InvokerMap
             Map<String, Invoker<T>> oldUrlInvokerMap = this.urlInvokerMap; // local reference
             if (invokerUrls == Collections.<URL>emptyList()) {
                 invokerUrls = new ArrayList<>();
             }
+
+            //如果invokerUrls为空，且已经缓存了，获取缓存URL
             if (invokerUrls.isEmpty() && this.cachedInvokerUrls != null) {
                 invokerUrls.addAll(this.cachedInvokerUrls);
             } else {
+                //缓存invokerUrls
                 this.cachedInvokerUrls = new HashSet<>();
                 this.cachedInvokerUrls.addAll(invokerUrls);//Cached invoker urls, convenient for comparison
             }
             if (invokerUrls.isEmpty()) {
                 return;
             }
-            // 将invokerUrls，转化为Invoker Map，内含生成Invoker的逻辑
+            //将invokerUrls，转化为Invoker Map，内含生成Invoker的逻辑
+            //这里的invokerUrls，是每个服务提供者的服务信息，包括IP、端口、接口名、方法等
             Map<String, Invoker<T>> newUrlInvokerMap = toInvokers(invokerUrls);// Translate url list to Invoker map
 
             /**
@@ -380,6 +393,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
      * @return invokers
      */
     private Map<String, Invoker<T>> toInvokers(List<URL> urls) {
+        //最终返回的新的InvokerMap
         Map<String, Invoker<T>> newUrlInvokerMap = new HashMap<>();
         if (urls == null || urls.isEmpty()) {
             return newUrlInvokerMap;
@@ -411,6 +425,12 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
                         ExtensionLoader.getExtensionLoader(Protocol.class).getSupportedExtensions()));
                 continue;
             }
+
+            //合并url，就是填充一些其他参数信息，如side、timeout等
+            //合并后的url，side变成了consumer、remote.application执行provider的application等
+            //数据示例：
+            //合并前的providerUrl：dubbo://192.168.0.205:20880/com.yuqiao.deeplearningdubbo.analysis.base.DemoService?anyhost=true&application=provider-app&bean.name=com.yuqiao.deeplearningdubbo.analysis.base.DemoService&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=com.yuqiao.deeplearningdubbo.analysis.base.DemoService&methods=sayHello,sayHello2&pid=69805&release=2.7.4.1&side=provider&timestamp=1650856242097
+            //合并后的url：dubbo://192.168.0.205:20880/com.yuqiao.deeplearningdubbo.analysis.base.DemoService?anyhost=true&application=consumer-app&bean.name=com.yuqiao.deeplearningdubbo.analysis.base.DemoService&check=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=com.yuqiao.deeplearningdubbo.analysis.base.DemoService&lazy=false&methods=sayHello,sayHello2&pid=69767&register.ip=192.168.0.205&release=2.7.4.1&remote.application=provider-app&retries=0&side=consumer&sticky=false&timeout=1000&timestamp=1650856242097
             URL url = mergeUrl(providerUrl);
 
             String key = url.toFullString(); // The parameter urls are sorted
@@ -418,18 +438,26 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
                 continue;
             }
             keys.add(key);
-            // Cache key is url that does not merge with consumer side parameters, regardless of how the consumer combines parameters, if the server url changes, then refer again
+            // 先根据key从缓存中获取
+            // 如果已经存在了Invoker，直接返回
+            // 如果没有Invoker，进入创建Invoker的逻辑
             Map<String, Invoker<T>> localUrlInvokerMap = this.urlInvokerMap; // local reference
             Invoker<T> invoker = localUrlInvokerMap == null ? null : localUrlInvokerMap.get(key);
             if (invoker == null) { // Not in the cache, refer again
                 try {
+                    //判断是否启用Invoker
                     boolean enabled = true;
                     if (url.hasParameter(DISABLED_KEY)) {
                         enabled = !url.getParameter(DISABLED_KEY, false);
                     } else {
                         enabled = url.getParameter(ENABLED_KEY, true);
                     }
+                    //如果启用，则创建Invoker
+                    //注意返回的是InvokerDelegate，它是Invoker的包装类，它的主要作用是保存了服务提供者的原始providerUrl
                     if (enabled) {
+                        //这里的protocol是自适应类
+                        //最终获取到的是DubboProtocol
+                        //走的是DubboProtocol.refer()创建用于远程调用DubboInvoker的逻辑
                         invoker = new InvokerDelegate<>(protocol.refer(serviceType, url), url, providerUrl);
                     }
                 } catch (Throwable t) {

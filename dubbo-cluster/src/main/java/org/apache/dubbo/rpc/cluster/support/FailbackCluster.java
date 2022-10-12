@@ -22,6 +22,8 @@ import org.apache.dubbo.rpc.cluster.Cluster;
 import org.apache.dubbo.rpc.cluster.Directory;
 
 /**
+ * 失败自动恢复，即调用失败后，定时自动补偿调用
+ *
  * {@link FailbackClusterInvoker}
  *
  */

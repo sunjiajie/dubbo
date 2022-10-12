@@ -1,0 +1,1 @@
+myRouter=org.apache.dubbo.demo.provider.router.MyRouterFactory

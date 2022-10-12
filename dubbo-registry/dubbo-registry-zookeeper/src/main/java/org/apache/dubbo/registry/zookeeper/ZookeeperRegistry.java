@@ -125,7 +125,9 @@ public class ZookeeperRegistry extends FailbackRegistry {
     @Override
     public void doRegister(URL url) {
         try {
-            //服务注册，只是通过zk客户端，将服务信息写到注册中心里去。
+            //在/dubbo/接口全限定名/provider/下创建当前服务的临时节点
+            //临时节点包含了当前服务信息，如应用名、接口名、方法名、版本号等
+            //数据示例：/dubbo/com.yuqiao.deeplearningdubbo.analysis.base.DemoService/providers/dubbo%3A%2F%2F192.168.191.205%3A20880%2Fcom.yuqiao.deeplearningdubbo.analysis.base.DemoService%3Fanyhost%3Dtrue%26application%3Dprovider-app%26bean.name%3Dcom.yuqiao.deeplearningdubbo.analysis.base.DemoService%26deprecated%3Dfalse%26dubbo%3D2.0.2%26dynamic%3Dtrue%26generic%3Dfalse%26interface%3Dcom.yuqiao.deeplearningdubbo.analysis.base.DemoService%26methods%3DsayHello%2CsayHello2%26pid%3D34324%26release%3D2.7.4.1%26side%3Dprovider%26timestamp%3D1648785326351
             zkClient.create(toUrlPath(url), url.getParameter(DYNAMIC_KEY, true));
         } catch (Throwable e) {
             throw new RpcException("Failed to register " + url + " to zookeeper " + getUrl() + ", cause: " + e.getMessage(), e);

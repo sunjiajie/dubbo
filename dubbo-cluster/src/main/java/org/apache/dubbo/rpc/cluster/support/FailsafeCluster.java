@@ -22,6 +22,8 @@ import org.apache.dubbo.rpc.cluster.Cluster;
 import org.apache.dubbo.rpc.cluster.Directory;
 
 /**
+ * 失败安全，即调用失败后，不抛异常，返回一个空结果
+ *
  * {@link FailsafeClusterInvoker}
  *
  */

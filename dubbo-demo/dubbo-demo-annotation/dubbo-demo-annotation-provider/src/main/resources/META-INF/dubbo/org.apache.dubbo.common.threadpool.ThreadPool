@@ -1,0 +1,1 @@
+myThreadPool=org.apache.dubbo.demo.provider.threadpool.MyThreadPool

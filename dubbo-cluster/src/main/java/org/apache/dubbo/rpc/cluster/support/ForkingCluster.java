@@ -22,6 +22,8 @@ import org.apache.dubbo.rpc.cluster.Cluster;
 import org.apache.dubbo.rpc.cluster.Directory;
 
 /**
+ * 并行调用多个服务提供者，获取最先成功的调用结果
+ *
  * {@link ForkingClusterInvoker}
  *
  */

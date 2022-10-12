@@ -22,6 +22,9 @@ import org.apache.dubbo.rpc.cluster.Cluster;
 import org.apache.dubbo.rpc.cluster.Directory;
 
 /**
+ *
+ * 失败重试，即调用失败后，切换一个服务提供者，重试
+ *
  * {@link FailoverClusterInvoker}
  *
  */

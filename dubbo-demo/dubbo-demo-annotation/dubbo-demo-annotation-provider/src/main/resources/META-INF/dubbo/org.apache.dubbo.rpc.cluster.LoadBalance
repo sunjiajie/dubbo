@@ -1,0 +1,1 @@
+myLoadBalance=org.apache.dubbo.demo.provider.loadbalance.MyLoadBalance

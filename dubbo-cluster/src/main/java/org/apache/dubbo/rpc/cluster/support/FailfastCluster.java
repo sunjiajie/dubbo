@@ -22,6 +22,9 @@ import org.apache.dubbo.rpc.cluster.Cluster;
 import org.apache.dubbo.rpc.cluster.Directory;
 
 /**
+ *
+ * 快速失败，即调用失败后，立马抛出异常
+ *
  * {@link FailfastClusterInvoker}
  *
  */
